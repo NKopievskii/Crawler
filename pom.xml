@@ -32,6 +32,13 @@
             <version>4.0.0</version>
         </dependency>
 
+        <!-- JAXB RI -->
+        <dependency>
+            <groupId>org.eclipse.persistence</groupId>
+            <artifactId>org.eclipse.persistence.moxy</artifactId>
+            <version>4.0.1</version>
+        </dependency>
+
 
     </dependencies>
 
