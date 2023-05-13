@@ -63,7 +63,7 @@ public class FandomCrawler {
 
     public FandomCrawler() {
         this.minLength = 200;
-        this.threadPoolLength = Runtime.getRuntime().availableProcessors() * 2;
+        this.threadPoolLength = Runtime.getRuntime().availableProcessors();
 //        System.out.println("Используемое кол-во потоков: " + threadPoolLength);
     }
 
