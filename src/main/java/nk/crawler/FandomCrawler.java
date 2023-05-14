@@ -1,5 +1,7 @@
 package nk.crawler;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -19,11 +21,16 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+
 public class FandomCrawler {
     private final Set<String> urlVisited = new HashSet<>();
     private final Queue<String> urlQueue = new LinkedList<>();
     private final Queue<String> urlNavigation = new LinkedList<>();
+    @Getter
+    @Setter
     private int threadPoolLength;
+    @Getter
+    @Setter
     private int minLength;
     private static final Set<String> IGNORED_CATEGORY = new HashSet<>(
             Arrays.asList(
@@ -48,7 +55,6 @@ public class FandomCrawler {
     private static final String CREATOR_XPATH = "(//bdi)[last()]";
     private static final String CREATOR_DATE_XPATH = "(//a[@class='mw-changeslist-date'])[last()]";
     private static final String XML_PATH = "./articles/";
-    private static final Safelist SAFELIST = Safelist.none();
 
     public FandomCrawler(int minLength) {
         this.minLength = minLength;
@@ -62,28 +68,6 @@ public class FandomCrawler {
     public FandomCrawler() {
         this.minLength = 100;
         this.threadPoolLength = Runtime.getRuntime().availableProcessors() * 2;
-//        System.out.println("Используемое кол-во потоков: " + threadPoolLength);
-    }
-
-    public int getThreadPoolLength() {
-        return threadPoolLength;
-    }
-
-    public void setThreadPoolLength(int threadPoolLength) {
-        this.threadPoolLength = threadPoolLength;
-    }
-
-    public int getMinLength() {
-        return minLength;
-    }
-
-    public void setMinLength(int minLength) {
-        this.minLength = minLength;
-    }
-
-
-    private void getAuthor() {
-        //get last editor or creator
     }
 
     private boolean crawlQueue() {
@@ -107,7 +91,6 @@ public class FandomCrawler {
         return terminationStatus;
     }
 
-    //Сплошняком текст
     public void crawl(String url) {
         crawlNavigation(url);
         System.out.println(urlQueue.size());
@@ -136,30 +119,14 @@ public class FandomCrawler {
     }
 
     private String parseByXPath(@NotNull Document document, @NotNull String xPath, String delimiter) {
-        //Убрать нахрен join и получать списки или хз чё
         return String.join(delimiter, document.selectXpath(xPath).eachText());
     }
 
-    //    private String parseText(@NotNull Document document, @NotNull String xPath) {
-//        for (Element element : document.select("*"))
-//            if (!element.hasText() && element.isBlock())
-//                element.remove();
-//        return String.join("\n", document.selectXpath(xPath).text());
-//    }
-//    private String parseText(@NotNull Document document, @NotNull String xPath) {
-//        for (Element element : document.select("*"))
-//            if (!element.hasText() && element.isBlock())
-//                element.remove();
-//        return Jsoup.clean(document
-//                .selectXpath(xPath)
-//                .html(), SAFELIST
-//        ); // Оставить пару тэгов и переносы оставлять через них
-//    }
     private String parseText(@NotNull Document document, @NotNull String xPath) {
         for (Element element : document.select("*"))
             if (!element.hasText() && element.isBlock())
                 element.remove();
-        List<String> strings = document.selectXpath("//div[@class='mw-parser-output']/*").eachText();
+        List<String> strings = document.selectXpath(xPath).eachText();
         return String.join("\n", strings);
     }
 
@@ -171,12 +138,11 @@ public class FandomCrawler {
         }
         String category = String.join("/", category_elements);
         String text = parseText(document, TEXT_XPATH);
-//        System.out.println(text);
         if (text.length() <= minLength) {
 //            System.out.println("Недопустимая длина статьи");
             return null;
         }
-        String title = parseByXPath(document, NAME_XPATH, ", "); // Убрать чтоб без join
+        String title = parseByXPath(document, NAME_XPATH, ", ");
         if (title.isEmpty())
             return null;
         String url = document.baseUri();
@@ -189,7 +155,6 @@ public class FandomCrawler {
         if (authorDocument != null) {
             creator = parseByXPath(authorDocument, CREATOR_XPATH, "");
             creationDate = parseByXPath(authorDocument, CREATOR_DATE_XPATH, "");
-//            creator = parseByXPath(authorDocument, CREATOR_DATE_XPATH, "");
         }
         return new Article(
                 title, category,
@@ -201,9 +166,7 @@ public class FandomCrawler {
     private void saveArticle() {
         String currentUrl;
         Document document;
-        int counter = 0;
         while (!urlQueue.isEmpty()) {
-            counter++;
             synchronized (urlQueue) {
                 currentUrl = urlQueue.poll();
             }
@@ -217,8 +180,6 @@ public class FandomCrawler {
             if (article != null)
                 article.saveToXML(XML_PATH);
         }
-//        System.out.println("Кол-во обработанных потоком страниц: " + counter);
-        //Вывод кол-ва обработанных страниц у каждого потока
     }
 
     private void crawlNavigation(String url) {
@@ -236,6 +197,7 @@ public class FandomCrawler {
                 continue;
             urlNavigation.add(currentUrl);
             fillQueue(document);
+            break;
         }
         urlVisited.clear();
     }

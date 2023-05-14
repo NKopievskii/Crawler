@@ -4,14 +4,13 @@ import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.annotation.*;
+import lombok.Data;
 import org.eclipse.persistence.oxm.annotations.XmlCDATA;
 
 import java.io.File;
 import java.util.UUID;
 
-//Lamboc
-//Навесить сетеров
-
+@Data
 @XmlRootElement(name = "doc")
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(propOrder = {"title", "category", "creator", "creationDate", "text"})
@@ -39,46 +38,6 @@ public class Article implements XmlStorable {
         this.text.setText(text);
     }
 
-    public ArticleField getTitle() {
-        return title;
-    }
-
-    public void setTitle(ArticleField title) {
-        this.title = title;
-    }
-
-    public ArticleField getCategory() {
-        return category;
-    }
-
-    public void setCategory(ArticleField category) {
-        this.category = category;
-    }
-
-    public ArticleField getCreator() {
-        return creator;
-    }
-
-    public void setCreator(ArticleField creator) {
-        this.creator = creator;
-    }
-
-    public ArticleField getCreationDate() {
-        return creationDate;
-    }
-
-    public void setCreationDate(ArticleField creationDate) {
-        this.creationDate = creationDate;
-    }
-
-    public ArticleField getText() {
-        return text;
-    }
-
-    public void setText(ArticleField text) {
-        this.text = text;
-    }
-
     @Override
     public void saveToXML(String path) {
         try {
@@ -94,7 +53,9 @@ public class Article implements XmlStorable {
         }
     }
 
+    @Data
     public static class ArticleField {
+
         @XmlElement
         @XmlCDATA
         public String text;
@@ -105,37 +66,6 @@ public class Article implements XmlStorable {
         @XmlAttribute
         public boolean verify = true;
 
-        public String getText() {
-            return text;
-        }
-
-        public void setText(String text) {
-            this.text = text;
-        }
-
-        public boolean isAuto() {
-            return auto;
-        }
-
-        public void setAuto(boolean auto) {
-            this.auto = auto;
-        }
-
-        public String getType() {
-            return type;
-        }
-
-        public void setType(String type) {
-            this.type = type;
-        }
-
-        public boolean isVerify() {
-            return verify;
-        }
-
-        public void setVerify(boolean verify) {
-            this.verify = verify;
-        }
     }
 
 }
