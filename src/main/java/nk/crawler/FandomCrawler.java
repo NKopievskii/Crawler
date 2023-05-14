@@ -29,28 +29,26 @@ public class FandomCrawler {
             Arrays.asList(
                     "", "Страница категории", "Шаблоны", "Шаблон", "Правила", "Участники", "Участник", "Обсуждение",
                     "Обсуждение участника", "The Elder Scrolls Wiki", "Обсуждение The Elder Scrolls Wiki",
-                    "Файл", "Обсуждение файла", "MediaWiki", "Обсуждение MediaWiki", "Обсуждение шаблона",
-                    "Справка", "Обсуждение справки", "Категория", "Обсуждение категории", "Форум", "Обсуждение форума",
-                    "GeoJson", "GeoJson talk", "Блог участника", "Комментарий блога участника", "Блог", "Обсуждение блога",
+                    "Файл", "Обсуждение файла", "MediaWiki", "Обсуждение MediaWiki", "Обсуждение шаблона", "Справка",
+                    "Обсуждение справки", "Категория", "Обсуждение категории", "Форум", "Обсуждение форума", "GeoJson",
+                    "GeoJson talk", "Блог участника", "Комментарий блога участника", "Блог", "Обсуждение блога",
                     "Модуль", "Обсуждение модуля", "Стена обсуждения", "Тема", "Приветствие стены обсуждения",
                     "Board", "Board Thread", "Topic", "Гаджет", "Обсуждение гаджета", "Определение гаджета",
-                    "Обсуждение определения гаджета", "Map", "Map talk"
+                    "Обсуждение определения гаджета", "Map", "Map talk", "Многозначные термины"
 
             )); //Для проверки категории
 
-    private static final String NAVIGATION_XPATH = "//a[@title='Служебная:Все страницы' and starts-with(text(), 'Следующая страница')]"; //Текст следующая страница
+    private static final String NAVIGATION_XPATH =
+            "//a[@title='Служебная:Все страницы' and starts-with(text(), 'Следующая страница')]";
     private static final String CONTENT_XPATH = "//div[@class='mw-allpages-body']//a";
-    private static final String NAME_XPATH = "//div[@class='page-header']//span[@class='mw-page-title-main']";
-    private static final String AUTHOR_XPATH = "(//bdi)[last()]";
+    private static final String NAME_XPATH = "//*[@class='mw-page-title-main']";
     private static final String CATEGORY_XPATH = "//li[@class='category normal']";
     private static final String TEXT_XPATH = "//div[@class='mw-parser-output']/*";
-    private static final String AUTHOR_REQUEST = "?action=history&dir=prev&limit=1";
+    private static final String CREATOR_REQUEST = "?action=history&dir=prev&limit=1";
+    private static final String CREATOR_XPATH = "(//bdi)[last()]";
+    private static final String CREATOR_DATE_XPATH = "(//a[@class='mw-changeslist-date'])[last()]";
     private static final String XML_PATH = "./articles/";
-    private static final Safelist SAFELIST = Safelist.relaxed()
-            .removeTags("div")
-            .removeTags("a")
-            .removeTags("img")
-            .removeTags("span");
+    private static final Safelist SAFELIST = Safelist.none();
 
     public FandomCrawler(int minLength) {
         this.minLength = minLength;
@@ -62,8 +60,8 @@ public class FandomCrawler {
     }
 
     public FandomCrawler() {
-        this.minLength = 200;
-        this.threadPoolLength = Runtime.getRuntime().availableProcessors();
+        this.minLength = 100;
+        this.threadPoolLength = Runtime.getRuntime().availableProcessors() * 2;
 //        System.out.println("Используемое кол-во потоков: " + threadPoolLength);
     }
 
@@ -83,8 +81,36 @@ public class FandomCrawler {
         this.minLength = minLength;
     }
 
-    public boolean crawl(String url) {
+
+    private void getAuthor() {
+        //get last editor or creator
+    }
+
+    private boolean crawlQueue() {
+        boolean terminationStatus;
+        int timeout = urlQueue.size() / 200;
+        try (ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(threadPoolLength, threadPoolLength,
+                0, TimeUnit.SECONDS, new SynchronousQueue<>())) {
+            Runnable task = this::saveArticle;
+//            threadPoolExecutor.setRejectedExecutionHandler((runnable, executor) -> System.out.println("Rejected"));
+            for (int i = 0; i < threadPoolLength; i++) {
+                threadPoolExecutor.submit(task);
+            }
+            threadPoolExecutor.shutdown();
+            try {
+                terminationStatus = threadPoolExecutor.awaitTermination(timeout, TimeUnit.MINUTES);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+//        System.out.println("Общее количество посещённых страниц: " + urlVisited.size());
+        return terminationStatus;
+    }
+
+    //Сплошняком текст
+    public void crawl(String url) {
         crawlNavigation(url);
+        System.out.println(urlQueue.size());
         Path cPath = Path.of(XML_PATH);
         if (!Files.exists(cPath)) {
             try {
@@ -93,23 +119,7 @@ public class FandomCrawler {
                 throw new RuntimeException(e);
             }
         }
-        boolean terminationStatus;
-        try (ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(threadPoolLength, threadPoolLength,
-                1, TimeUnit.SECONDS, new SynchronousQueue<>())) {
-            Runnable task = this::saveArticle;
-            threadPoolExecutor.setRejectedExecutionHandler((runnable, executor) -> System.out.println("Rejected"));
-            for (int i = 0; i < threadPoolLength; i++) {
-                threadPoolExecutor.submit(task);
-            }
-            threadPoolExecutor.shutdown();
-            try {
-                terminationStatus = threadPoolExecutor.awaitTermination(6, TimeUnit.HOURS);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
-//        System.out.println("Общее количество посещённых страниц: " + urlVisited.size());
-        return terminationStatus;
+        crawlQueue();
 
     }
 
@@ -126,44 +136,64 @@ public class FandomCrawler {
     }
 
     private String parseByXPath(@NotNull Document document, @NotNull String xPath, String delimiter) {
+        //Убрать нахрен join и получать списки или хз чё
         return String.join(delimiter, document.selectXpath(xPath).eachText());
     }
 
+    //    private String parseText(@NotNull Document document, @NotNull String xPath) {
+//        for (Element element : document.select("*"))
+//            if (!element.hasText() && element.isBlock())
+//                element.remove();
+//        return String.join("\n", document.selectXpath(xPath).text());
+//    }
+//    private String parseText(@NotNull Document document, @NotNull String xPath) {
+//        for (Element element : document.select("*"))
+//            if (!element.hasText() && element.isBlock())
+//                element.remove();
+//        return Jsoup.clean(document
+//                .selectXpath(xPath)
+//                .html(), SAFELIST
+//        ); // Оставить пару тэгов и переносы оставлять через них
+//    }
     private String parseText(@NotNull Document document, @NotNull String xPath) {
         for (Element element : document.select("*"))
             if (!element.hasText() && element.isBlock())
                 element.remove();
-        return Jsoup.clean(document
-                .selectXpath(xPath)
-                .html(), SAFELIST
-        );
+        List<String> strings = document.selectXpath("//div[@class='mw-parser-output']/*").eachText();
+        return String.join("\n", strings);
     }
 
     private XmlStorable parseContent(Document document) {
         List<String> category_elements = document.selectXpath(CATEGORY_XPATH).stream().map(Element::text).toList();
         if (category_elements.isEmpty() || !Collections.disjoint(IGNORED_CATEGORY, category_elements)) {
-//            System.out.println("Не содержит категорий или Содержит неподходящую категорию");
+//            System.out.println("Не содержит категорий или cодержит неподходящую категорию");
             return null;
         }
         String category = String.join("/", category_elements);
         String text = parseText(document, TEXT_XPATH);
+//        System.out.println(text);
         if (text.length() <= minLength) {
 //            System.out.println("Недопустимая длина статьи");
             return null;
         }
-        String title = parseByXPath(document, NAME_XPATH, ", ");
+        String title = parseByXPath(document, NAME_XPATH, ", "); // Убрать чтоб без join
+        if (title.isEmpty())
+            return null;
         String url = document.baseUri();
+
         System.out.println(title + "\t(" + UUID.nameUUIDFromBytes(title.getBytes()) + "):\t" + url);
-        Document authorDocument = getContent(url + AUTHOR_REQUEST);
-        String author;
-        if (authorDocument != null)
-            author = parseByXPath(authorDocument, AUTHOR_XPATH, "");
-        else
-            author = "";
+
+        Document authorDocument = getContent(url + CREATOR_REQUEST);
+        String creator = "";
+        String creationDate = "";
+        if (authorDocument != null) {
+            creator = parseByXPath(authorDocument, CREATOR_XPATH, "");
+            creationDate = parseByXPath(authorDocument, CREATOR_DATE_XPATH, "");
+//            creator = parseByXPath(authorDocument, CREATOR_DATE_XPATH, "");
+        }
         return new Article(
-                title,
-                category,
-                author,
+                title, category,
+                creator, creationDate,
                 text
         );
     }
@@ -171,7 +201,9 @@ public class FandomCrawler {
     private void saveArticle() {
         String currentUrl;
         Document document;
+        int counter = 0;
         while (!urlQueue.isEmpty()) {
+            counter++;
             synchronized (urlQueue) {
                 currentUrl = urlQueue.poll();
             }
@@ -185,6 +217,8 @@ public class FandomCrawler {
             if (article != null)
                 article.saveToXML(XML_PATH);
         }
+//        System.out.println("Кол-во обработанных потоком страниц: " + counter);
+        //Вывод кол-ва обработанных страниц у каждого потока
     }
 
     private void crawlNavigation(String url) {

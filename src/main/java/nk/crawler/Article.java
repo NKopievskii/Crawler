@@ -3,100 +3,80 @@ package nk.crawler;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
-import jakarta.xml.bind.annotation.XmlAccessType;
-import jakarta.xml.bind.annotation.XmlAccessorType;
-import jakarta.xml.bind.annotation.XmlRootElement;
-import jakarta.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.*;
 import org.eclipse.persistence.oxm.annotations.XmlCDATA;
-import org.eclipse.persistence.oxm.annotations.XmlPath;
 
 import java.io.File;
 import java.util.UUID;
 
+//Lamboc
+//Навесить сетеров
+
 @XmlRootElement(name = "doc")
 @XmlAccessorType(XmlAccessType.FIELD)
-@XmlType(propOrder = {"title", "author", "category", "text"})
+@XmlType(propOrder = {"title", "category", "creator", "creationDate", "text"})
 public class Article implements XmlStorable {
-    private String title;
-    @XmlPath("title/@auto")
-    private boolean title_auto = true;
-    @XmlPath("title/@type")
-    private String title_type = "str"; //Стиль написания под python
-    @XmlPath("title/@verify")
-    private boolean title_verify = true;
-    private String author;
-    @XmlPath("author/@auto")
-    private boolean author_auto = true;
-    @XmlPath("author/@type")
-    private String author_type = "str"; //Стиль написания под python
-    @XmlPath("author/@verify")
-    private boolean author_verify = true;
-    private String category;
-    @XmlPath("category/@auto")
-    private boolean category_auto = true;
-    @XmlPath("category/@type")
-    private String category_type = "str"; //Стиль написания под python
-    @XmlPath("category/@verify")
-    private boolean category_verify = true;
-    @XmlCDATA
-    private String text;
-    @XmlPath("text/@auto")
-    private boolean text_auto = true;
-    @XmlPath("text/@type")
-    private String text_type = "str"; //Стиль написания под python
-    @XmlPath("text/@verify")
-    private boolean text_verify = true;
+    @XmlElement(name = "title")
+    private ArticleField title = new ArticleField();
+    @XmlElement(name = "category")
+    private ArticleField category = new ArticleField();
+    @XmlElement(name = "creator")
+    private ArticleField creator = new ArticleField();
+    @XmlElement(name = "creation_date")
+    private ArticleField creationDate = new ArticleField();
+    @XmlElement(name = "text")
+    private ArticleField text = new ArticleField();
+
 
     public Article() {
     }
 
-    public Article(String title, String category, String author, String text) {
-        this.title = title;
-        this.author = author;
-        this.category = category;
-        this.text = text;
+    public Article(String title, String category, String creator, String creationDate, String text) {
+        this.title.setText(title);
+        this.category.setText(category);
+        this.creator.setText(creator);
+        this.creationDate.setText(creationDate);
+        this.text.setText(text);
     }
 
-    public String getTitle() {
+    public ArticleField getTitle() {
         return title;
     }
 
-    public void setTitle(String title) {
+    public void setTitle(ArticleField title) {
         this.title = title;
     }
 
-    public String getAuthor() {
-        return author;
-    }
-
-    public void setAuthor(String author) {
-        this.author = author;
-    }
-
-    public String getCategory() {
+    public ArticleField getCategory() {
         return category;
     }
 
-    public void setCategory(String category) {
+    public void setCategory(ArticleField category) {
         this.category = category;
     }
 
-    public String getText() {
+    public ArticleField getCreator() {
+        return creator;
+    }
+
+    public void setCreator(ArticleField creator) {
+        this.creator = creator;
+    }
+
+    public ArticleField getCreationDate() {
+        return creationDate;
+    }
+
+    public void setCreationDate(ArticleField creationDate) {
+        this.creationDate = creationDate;
+    }
+
+    public ArticleField getText() {
         return text;
     }
 
-    public void setText(String text) {
+    public void setText(ArticleField text) {
         this.text = text;
-    }
-
-    @Override
-    public String toString() {
-        return "Article{" +
-                "title='" + title + '\'' +
-                ", author='" + author + '\'' +
-                ", category='" + category + '\'' +
-                ", text='" + text + '\'' +
-                '}';
     }
 
     @Override
@@ -105,7 +85,7 @@ public class Article implements XmlStorable {
             JAXBContext context = JAXBContext.newInstance(this.getClass());
             Marshaller mar = context.createMarshaller();
             mar.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-            UUID uuid = UUID.nameUUIDFromBytes(title.getBytes());
+            UUID uuid = UUID.nameUUIDFromBytes(title.getText().getBytes());
             File file = new File(path + uuid + ".xml");
 //            File file = new File(path + this.title + ".xml");
             mar.marshal(this, file);
@@ -113,4 +93,49 @@ public class Article implements XmlStorable {
             e.printStackTrace();
         }
     }
+
+    public static class ArticleField {
+        @XmlElement
+        @XmlCDATA
+        public String text;
+        @XmlAttribute
+        public boolean auto = true;
+        @XmlAttribute
+        public String type = "str";
+        @XmlAttribute
+        public boolean verify = true;
+
+        public String getText() {
+            return text;
+        }
+
+        public void setText(String text) {
+            this.text = text;
+        }
+
+        public boolean isAuto() {
+            return auto;
+        }
+
+        public void setAuto(boolean auto) {
+            this.auto = auto;
+        }
+
+        public String getType() {
+            return type;
+        }
+
+        public void setType(String type) {
+            this.type = type;
+        }
+
+        public boolean isVerify() {
+            return verify;
+        }
+
+        public void setVerify(boolean verify) {
+            this.verify = verify;
+        }
+    }
+
 }
