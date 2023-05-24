@@ -7,11 +7,10 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 
 public class Main {
-    //TODO: Add logging
     public static void main(String[] args) {
         LocalDateTime start = LocalDateTime.now();
         String redirectLocation =  "output.txt";
-//        redirectOutput(redirectLocation);
+        redirectOutput(redirectLocation);
         System.out.println(start.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)));
         String resource = "https://elderscrolls.fandom.com/ru/wiki/%D0%A1%D0%BB%D1%83%D0%B6%D0%B5%D0%B1%D0%BD%D0%B0%D1%8F:AllPages";
 //        String resource = "https://elderscrolls.fandom.com/ru/wiki/";

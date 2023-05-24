@@ -5,34 +5,30 @@ import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.annotation.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.eclipse.persistence.oxm.annotations.XmlCDATA;
 
 import java.io.File;
 import java.util.UUID;
 
+
+//ObjectMapper
 @Data
+@NoArgsConstructor
 @XmlRootElement(name = "doc")
 @XmlAccessorType(XmlAccessType.FIELD)
-@XmlType(propOrder = {"title", "category", "creator", "creationDate", "text"})
+@XmlType(propOrder = {"title", "categories", "creator", "creationDate", "text"})
 public class Article implements XmlStorable {
-    @XmlElement(name = "title")
     private ArticleField title = new ArticleField();
-    @XmlElement(name = "category")
-    private ArticleField category = new ArticleField();
-    @XmlElement(name = "creator")
+    private ArticleField categories = new ArticleField();
     private ArticleField creator = new ArticleField();
     @XmlElement(name = "creation_date")
     private ArticleField creationDate = new ArticleField();
-    @XmlElement(name = "text")
     private ArticleField text = new ArticleField();
-
-
-    public Article() {
-    }
 
     public Article(String title, String category, String creator, String creationDate, String text) {
         this.title.setText(title);
-        this.category.setText(category);
+        this.categories.setText(category);
         this.creator.setText(creator);
         this.creationDate.setText(creationDate);
         this.text.setText(text);
@@ -55,8 +51,7 @@ public class Article implements XmlStorable {
 
     @Data
     public static class ArticleField {
-
-        @XmlElement
+        @XmlValue
         @XmlCDATA
         public String text;
         @XmlAttribute

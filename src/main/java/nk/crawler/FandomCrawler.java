@@ -6,7 +6,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.safety.Safelist;
 import org.jsoup.select.Elements;
 
 import java.io.FileNotFoundException;
@@ -67,7 +66,8 @@ public class FandomCrawler {
 
     public FandomCrawler() {
         this.minLength = 100;
-        this.threadPoolLength = Runtime.getRuntime().availableProcessors() * 2;
+//        this.threadPoolLength = Runtime.getRuntime().availableProcessors() * 2;
+        this.threadPoolLength = 64;
     }
 
     private boolean crawlQueue() {
@@ -197,7 +197,7 @@ public class FandomCrawler {
                 continue;
             urlNavigation.add(currentUrl);
             fillQueue(document);
-            break;
+//            break;
         }
         urlVisited.clear();
     }
