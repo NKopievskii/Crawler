@@ -2,6 +2,7 @@ package nk.crawler;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -15,12 +16,19 @@ import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-
+@Slf4j
 public class FandomCrawler {
     private final Set<String> urlVisited = new HashSet<>();
     private final Queue<String> urlQueue = new LinkedList<>();
@@ -41,9 +49,7 @@ public class FandomCrawler {
                     "Модуль", "Обсуждение модуля", "Стена обсуждения", "Тема", "Приветствие стены обсуждения",
                     "Board", "Board Thread", "Topic", "Гаджет", "Обсуждение гаджета", "Определение гаджета",
                     "Обсуждение определения гаджета", "Map", "Map talk", "Многозначные термины"
-
-            )); //Для проверки категории
-
+            ));
     private static final String NAVIGATION_XPATH =
             "//a[@title='Служебная:Все страницы' and starts-with(text(), 'Следующая страница')]";
     private static final String CONTENT_XPATH = "//div[@class='mw-allpages-body']//a";
@@ -52,12 +58,8 @@ public class FandomCrawler {
     private static final String TEXT_XPATH = "//div[@class='mw-parser-output']/*";
     private static final String CREATOR_REQUEST = "?action=history&dir=prev&limit=1";
     private static final String CREATOR_XPATH = "(//bdi)[last()]";
-    private static final String CREATOR_DATE_XPATH = "(//a[@class='mw-changeslist-date'])[last()]";
+    private static final String CREATOR_DATE_XPATH = "(//a[contains(@class, 'mw-changeslist-date')])[last()]";
     private static final String XML_PATH = "./articles/";
-
-    public FandomCrawler(int minLength) {
-        this.minLength = minLength;
-    }
 
     public FandomCrawler(int threadPoolLength, int minLength) {
         this.threadPoolLength = threadPoolLength;
@@ -66,7 +68,6 @@ public class FandomCrawler {
 
     public FandomCrawler() {
         this.minLength = 100;
-//        this.threadPoolLength = Runtime.getRuntime().availableProcessors() * 2;
         this.threadPoolLength = 64;
     }
 
@@ -76,7 +77,6 @@ public class FandomCrawler {
         try (ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(threadPoolLength, threadPoolLength,
                 0, TimeUnit.SECONDS, new SynchronousQueue<>())) {
             Runnable task = this::saveArticle;
-//            threadPoolExecutor.setRejectedExecutionHandler((runnable, executor) -> System.out.println("Rejected"));
             for (int i = 0; i < threadPoolLength; i++) {
                 threadPoolExecutor.submit(task);
             }
@@ -84,21 +84,22 @@ public class FandomCrawler {
             try {
                 terminationStatus = threadPoolExecutor.awaitTermination(timeout, TimeUnit.MINUTES);
             } catch (InterruptedException e) {
+                log.error("Ошибка в работе потоков: " + e.getMessage());
                 throw new RuntimeException(e);
             }
         }
-//        System.out.println("Общее количество посещённых страниц: " + urlVisited.size());
         return terminationStatus;
     }
 
     public void crawl(String url) {
         crawlNavigation(url);
-        System.out.println(urlQueue.size());
+        log.info("Размер очереди страниц: " + urlQueue.size());
         Path cPath = Path.of(XML_PATH);
         if (!Files.exists(cPath)) {
             try {
                 Files.createDirectory(cPath);
             } catch (IOException e) {
+                log.error("Ошибка создания директории: " + e.getMessage());
                 throw new RuntimeException(e);
             }
         }
@@ -111,8 +112,10 @@ public class FandomCrawler {
         try {
             document = Jsoup.parse(new URI(usingUrl).toURL().openStream(), "UTF-8", usingUrl);
         } catch (FileNotFoundException | UnknownHostException | NullPointerException e) {
+            log.warn("Нет доступа к содержимому страницы: " + e.getMessage());
             return null;
         } catch (IOException | URISyntaxException e) {
+            log.error("Ошибка получения страницы: " + e.getMessage());
             throw new RuntimeException(e);
         }
         return document;
@@ -122,33 +125,29 @@ public class FandomCrawler {
         return String.join(delimiter, document.selectXpath(xPath).eachText());
     }
 
-    private String parseText(@NotNull Document document, @NotNull String xPath) {
+    private String parseText(@NotNull Document document) {
         for (Element element : document.select("*"))
             if (!element.hasText() && element.isBlock())
                 element.remove();
-        List<String> strings = document.selectXpath(xPath).eachText();
+        List<String> strings = document.selectXpath(FandomCrawler.TEXT_XPATH).eachText();
         return String.join("\n", strings);
     }
 
     private XmlStorable parseContent(Document document) {
         List<String> category_elements = document.selectXpath(CATEGORY_XPATH).stream().map(Element::text).toList();
         if (category_elements.isEmpty() || !Collections.disjoint(IGNORED_CATEGORY, category_elements)) {
-//            System.out.println("Не содержит категорий или cодержит неподходящую категорию");
             return null;
         }
         String category = String.join("/", category_elements);
-        String text = parseText(document, TEXT_XPATH);
+        String text = parseText(document);
         if (text.length() <= minLength) {
-//            System.out.println("Недопустимая длина статьи");
             return null;
         }
         String title = parseByXPath(document, NAME_XPATH, ", ");
         if (title.isEmpty())
             return null;
         String url = document.baseUri();
-
-        System.out.println(title + "\t(" + UUID.nameUUIDFromBytes(title.getBytes()) + "):\t" + url);
-
+        log.info(title + "\t(" + UUID.nameUUIDFromBytes(title.getBytes()) + "):\t" + url);
         Document authorDocument = getContent(url + CREATOR_REQUEST);
         String creator = "";
         String creationDate = "";
@@ -197,7 +196,6 @@ public class FandomCrawler {
                 continue;
             urlNavigation.add(currentUrl);
             fillQueue(document);
-//            break;
         }
         urlVisited.clear();
     }

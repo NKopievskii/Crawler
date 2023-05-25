@@ -3,7 +3,13 @@ package nk.crawler;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
-import jakarta.xml.bind.annotation.*;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlValue;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.eclipse.persistence.oxm.annotations.XmlCDATA;
@@ -12,7 +18,6 @@ import java.io.File;
 import java.util.UUID;
 
 
-//ObjectMapper
 @Data
 @NoArgsConstructor
 @XmlRootElement(name = "doc")
@@ -42,7 +47,6 @@ public class Article implements XmlStorable {
             mar.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
             UUID uuid = UUID.nameUUIDFromBytes(title.getText().getBytes());
             File file = new File(path + uuid + ".xml");
-//            File file = new File(path + this.title + ".xml");
             mar.marshal(this, file);
         } catch (JAXBException e) {
             e.printStackTrace();
