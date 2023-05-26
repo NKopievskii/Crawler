@@ -17,7 +17,10 @@ import org.eclipse.persistence.oxm.annotations.XmlCDATA;
 import java.io.File;
 import java.util.UUID;
 
-
+/**
+ * Класс реализующий интерфейс XmlStorable со следующими полями:
+ * title - название, categories - категории, creator - автор, creationDate - дата создания, text - текст статьи
+ */
 @Data
 @NoArgsConstructor
 @XmlRootElement(name = "doc")
@@ -39,6 +42,10 @@ public class Article implements XmlStorable {
         this.text.setText(text);
     }
 
+    /**
+     * Сохраняет данные по указанному пути
+     * @param path путь сохранения данных
+     */
     @Override
     public void saveToXML(String path) {
         try {
@@ -53,6 +60,9 @@ public class Article implements XmlStorable {
         }
     }
 
+    /**
+     * Вспомогательный класс добавляющий атрибуты полям класса Article
+     */
     @Data
     public static class ArticleField {
         @XmlValue

@@ -7,9 +7,14 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 
+/**
+ * Класс содержит метод запуска выполнения работы класса FandomCrawler
+ */
 @Slf4j
 public class FandomCrawlerLauncher {
-
+    /**
+     * Выполняет настройку и вывод дополнительной информации для работы краулера класса FandomCrawler
+     */
     public static void execute() {
         LocalDateTime start = LocalDateTime.now();
         log.info(start.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)));

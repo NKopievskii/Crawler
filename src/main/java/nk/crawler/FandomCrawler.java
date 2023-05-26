@@ -28,6 +28,11 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Класс содержит различные методы для получения информации из указанного ресурса (рассчитан для работы с The Elder Scrolls Wiki), и сохранения полученной информации по средствам реализации интерфейса XmlStorable.
+ *
+ * @author Копиевский Н. Ю.
+ */
 @Slf4j
 public class FandomCrawler {
     private final Set<String> urlVisited = new HashSet<>();
@@ -70,7 +75,29 @@ public class FandomCrawler {
         this.minLength = 100;
         this.threadPoolLength = 64;
     }
+    /**
+     * Стартовый метод получения информации из ресурса
+     * @param url URL страницы с которой необходимо выполнить получения информации
+     */
+    public void crawl(String url) {
+        crawlNavigation(url);
+        log.info("Размер очереди страниц: " + urlQueue.size());
+        Path cPath = Path.of(XML_PATH);
+        if (!Files.exists(cPath)) {
+            try {
+                Files.createDirectory(cPath);
+            } catch (IOException e) {
+                log.error("Ошибка создания директории: " + e.getMessage());
+                throw new RuntimeException(e);
+            }
+        }
+        crawlQueue();
 
+    }
+    /**
+     * Создаёт пул потоков (ThreadPoolExecutor) для работы с очередью страниц и назначает им задачу получения и сохранения статей.
+     * @return true если краулинг очереди завершился корректно и false, если возникли ошибки
+     */
     private boolean crawlQueue() {
         boolean terminationStatus;
         int timeout = urlQueue.size() / 200;
@@ -91,22 +118,34 @@ public class FandomCrawler {
         return terminationStatus;
     }
 
-    public void crawl(String url) {
-        crawlNavigation(url);
-        log.info("Размер очереди страниц: " + urlQueue.size());
-        Path cPath = Path.of(XML_PATH);
-        if (!Files.exists(cPath)) {
-            try {
-                Files.createDirectory(cPath);
-            } catch (IOException e) {
-                log.error("Ошибка создания директории: " + e.getMessage());
-                throw new RuntimeException(e);
-            }
+    /**
+     * Выполняет переход по навигационной странице и получение списка адресов статей
+     * @param url URL страницы навигации
+     */
+    private void crawlNavigation(String url) {
+        urlNavigation.add(url);
+        String currentUrl;
+        Document document;
+        while (!urlNavigation.isEmpty()) {
+            currentUrl = urlNavigation.poll();
+            urlVisited.add(currentUrl);
+            document = getContent(currentUrl);
+            if (document == null)
+                continue;
+            currentUrl = getNextNavigation(document);
+            if (urlVisited.contains(currentUrl))
+                continue;
+            urlNavigation.add(currentUrl);
+            fillQueue(document);
         }
-        crawlQueue();
-
+        urlVisited.clear();
     }
 
+    /**
+     * Получает содержимое страницы по средствам GET запроса и обработки jsoup
+     * @param usingUrl URL страницы с которой необходимо получить содержимое
+     * @return содержимое страницы в формате Document (jsoup)
+     */
     private static Document getContent(String usingUrl) {
         Document document;
         try {
@@ -121,18 +160,33 @@ public class FandomCrawler {
         return document;
     }
 
-    private String parseByXPath(@NotNull Document document, @NotNull String xPath, String delimiter) {
-        return String.join(delimiter, document.selectXpath(xPath).eachText());
+    /**
+     * Получает следующую страницу навигации
+     * @param document содержимое страницы навигации
+     * @return URL следующей страницы навигации
+     */
+    private String getNextNavigation(Document document) {
+        Element nextPage = document.selectXpath(NAVIGATION_XPATH).last();
+        if (nextPage != null)
+            return nextPage.absUrl("href");
+        return null;
     }
 
-    private String parseText(@NotNull Document document) {
-        for (Element element : document.select("*"))
-            if (!element.hasText() && element.isBlock())
-                element.remove();
-        List<String> strings = document.selectXpath(FandomCrawler.TEXT_XPATH).eachText();
-        return String.join("\n", strings);
+    /**
+     * Получает список статей и заполняет им очередь
+     * @param document содержимое страницы навигации
+     */
+    private void fillQueue(Document document) {
+        Elements elements = document.selectXpath(CONTENT_XPATH);
+        for (Element element : elements) {
+            urlQueue.add(element.absUrl("href"));
+        }
     }
-
+    /**
+     * Получение конкретных данных со страницы: название, категории, автор, дата создания, текст.
+     * @param document содержимое страницы
+     * @return объект класса данных, сохраняемых в XML (XMLStorable)
+     */
     private XmlStorable parseContent(Document document) {
         List<String> category_elements = document.selectXpath(CATEGORY_XPATH).stream().map(Element::text).toList();
         if (category_elements.isEmpty() || !Collections.disjoint(IGNORED_CATEGORY, category_elements)) {
@@ -162,6 +216,33 @@ public class FandomCrawler {
         );
     }
 
+    /**
+     * Получение строки по XPath-запросу, с разделением по указанному разделителю
+     * @param document содержимое страницы на которой необходимо выполнить запрос
+     * @param xPath XPath-запрос
+     * @param delimiter разделитель
+     * @return строка с данным полученными по XPath-запросу
+     */
+    private String parseByXPath(@NotNull Document document, @NotNull String xPath, String delimiter) {
+        return String.join(delimiter, document.selectXpath(xPath).eachText());
+    }
+
+    /**
+     * Получение текстового содержимого страницы
+     * @param document содержимое страницы
+     * @return строка с текстовыми данными страницы
+     */
+    private String parseText(@NotNull Document document) {
+        for (Element element : document.select("*"))
+            if (!element.hasText() && element.isBlock())
+                element.remove();
+        List<String> strings = document.selectXpath(FandomCrawler.TEXT_XPATH).eachText();
+        return String.join("\n", strings);
+    }
+
+    /**
+     * Сохраняет статьи из списка статей в XML файл
+     */
     private void saveArticle() {
         String currentUrl;
         Document document;
@@ -181,36 +262,7 @@ public class FandomCrawler {
         }
     }
 
-    private void crawlNavigation(String url) {
-        urlNavigation.add(url);
-        String currentUrl;
-        Document document;
-        while (!urlNavigation.isEmpty()) {
-            currentUrl = urlNavigation.poll();
-            urlVisited.add(currentUrl);
-            document = getContent(currentUrl);
-            if (document == null)
-                continue;
-            currentUrl = getNextNavigation(document);
-            if (urlVisited.contains(currentUrl))
-                continue;
-            urlNavigation.add(currentUrl);
-            fillQueue(document);
-        }
-        urlVisited.clear();
-    }
 
-    private void fillQueue(Document document) {
-        Elements elements = document.selectXpath(CONTENT_XPATH);
-        for (Element element : elements) {
-            urlQueue.add(element.absUrl("href"));
-        }
-    }
 
-    private String getNextNavigation(Document document) {
-        Element nextPage = document.selectXpath(NAVIGATION_XPATH).last();
-        if (nextPage != null)
-            return nextPage.absUrl("href");
-        return null;
-    }
+
 }
