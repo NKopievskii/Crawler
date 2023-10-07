@@ -237,6 +237,7 @@ public class FandomCrawler {
             if (!element.hasText() && element.isBlock())
                 element.remove();
         List<String> strings = document.selectXpath(FandomCrawler.TEXT_XPATH).eachText();
+        //String regex = "Примечания Галерея Описания Источники";
         return String.join("\n", strings);
     }
 

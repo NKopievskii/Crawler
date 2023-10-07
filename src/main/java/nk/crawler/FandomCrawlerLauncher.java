@@ -19,6 +19,9 @@ public class FandomCrawlerLauncher {
         LocalDateTime start = LocalDateTime.now();
         log.info(start.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)));
         String resource = "https://elderscrolls.fandom.com/ru/wiki/%D0%A1%D0%BB%D1%83%D0%B6%D0%B5%D0%B1%D0%BD%D0%B0%D1%8F:AllPages";
+        //String resource = "https://elderscrolls.fandom.com/ru/wiki/%D0%A1%D0%BB%D1%83%D0%B6%D0%B5%D0%B1%D0%BD%D0%B0%D1%8F:AllPages";
+        //String resource = "https://harrypotter.fandom.com/ru/wiki/%D0%A1%D0%BB%D1%83%D0%B6%D0%B5%D0%B1%D0%BD%D0%B0%D1%8F:AllPages";
+        //String resource = "https://starwars.fandom.com/ru/wiki/%D0%A1%D0%BB%D1%83%D0%B6%D0%B5%D0%B1%D0%BD%D0%B0%D1%8F:AllPages";
         log.info("Краулинг ресурса: " + resource);
         FandomCrawler crawler = new FandomCrawler();
         crawler.crawl(resource);
