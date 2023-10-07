@@ -27,6 +27,8 @@ import java.util.UUID;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Класс содержит различные методы для получения информации из указанного ресурса (рассчитан для работы с The Elder Scrolls Wiki), и сохранения полученной информации по средствам реализации интерфейса XmlStorable.
@@ -65,6 +67,7 @@ public class FandomCrawler {
     private static final String CREATOR_XPATH = "(//bdi)[last()]";
     private static final String CREATOR_DATE_XPATH = "(//a[contains(@class, 'mw-changeslist-date')])[last()]";
     private static final String XML_PATH = "./articles/";
+    private static final String TEXT_REGEX = "(.+?)(Примечания|Галерея|Описания|Источники)";
 
     public FandomCrawler(int threadPoolLength, int minLength) {
         this.threadPoolLength = threadPoolLength;
@@ -237,8 +240,13 @@ public class FandomCrawler {
             if (!element.hasText() && element.isBlock())
                 element.remove();
         List<String> strings = document.selectXpath(FandomCrawler.TEXT_XPATH).eachText();
-        //String regex = "Примечания Галерея Описания Источники";
-        return String.join("\n", strings);
+        Pattern pattern = Pattern.compile(TEXT_REGEX, Pattern.DOTALL);
+        String resultText = String.join("\n", strings);
+        Matcher matcher = pattern.matcher(resultText);
+        if (matcher.find()) {
+            resultText = matcher.group(1);
+        }
+        return resultText;
     }
 
     /**
